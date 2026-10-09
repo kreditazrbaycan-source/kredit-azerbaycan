@@ -1,483 +1,123 @@
+
 <!DOCTYPE html>
 <html lang="az">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kredit Azərbaycan</title>
-
-<style>
-*{box-sizing:border-box}
-
-body{
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:#f4f6f8;
-  color:#222;
-}
-
-.container{
-  max-width:600px;
-  margin:auto;
-  padding:20px 15px 40px;
-}
-
-.card{
-  background:#fff;
-  border-radius:25px;
-  padding:35px 22px;
-  margin-top:20px;
-  box-shadow:0 5px 25px rgba(0,0,0,.10);
-  text-align:center;
-}
-
-.logo{
-  font-size:36px;
-  font-weight:bold;
-  color:#008f83;
-  margin-bottom:25px;
-}
-
-.consent{
-  background:#f1f7fc;
-  border-radius:15px;
-  padding:18px;
-  text-align:left;
-  font-size:18px;
-  line-height:1.7;
-}
-
-button{
-  width:100%;
-  border:0;
-  border-radius:16px;
-  padding:20px;
-  margin-top:25px;
-  background:#008f83;
-  color:white;
-  font-size:23px;
-  font-weight:bold;
-}
-
-button:disabled{
-  opacity:.55;
-}
-
-#locationStatus,
-#cameraStatus{
-  margin-top:18px;
-  font-size:17px;
-  color:#555;
-}
-
-#cameraSection{
-  display:none;
-}
-
-video{
-  width:100%;
-  border-radius:18px;
-  background:#000;
-  margin-top:15px;
-  display:block;
-}
-
-#captureButton{
-  display:none;
-  background:#333;
-}
-
-#photoPreview{
-  width:100%;
-  border-radius:18px;
-  margin-top:20px;
-  display:none;
-}
-
-#success{
-  display:none;
-  color:#16803c;
-  font-weight:bold;
-  font-size:19px;
-  margin-top:18px;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kredit Azərbaycan</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f5f9;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 420px;
+      margin: 30px auto;
+      background: white;
+      padding: 24px;
+      border-radius: 14px;
+      box-shadow: 0 3px 14px #0001;
+    }
+    h1 { text-align: center; color: #174ea6; }
+    p { line-height: 1.5; color: #444; }
+    label { display: block; margin-top: 14px; font-weight: bold; }
+    input, textarea {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px;
+      background: #174ea6;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      font-size: 17px;
+    }
+    #status { white-space: pre-wrap; }
+  </style>
 </head>
-
 <body>
-
-<div class="container">
-
-  <div class="card">
-
-    <div class="logo">
-      💳 Kredit Azərbaycan
-    </div>
-
-    <div class="consent">
-
-      ☑ I agree to share my location.
-
-      <br><br>
-
-      ☑ I agree to grant camera access when requested.
-
-    </div>
-
-    <button id="nextButton">
-      İLERİ
-    </button>
-
-    <div id="locationStatus"></div>
-
-  </div>
-
-
-  <div class="card" id="cameraSection">
-
-    <div class="logo">
-      📷
-    </div>
-
-    <h2>Kamera</h2>
-
-    <button id="cameraButton">
-      Kameranı aç
-    </button>
-
-    <video
-      id="video"
-      autoplay
-      playsinline
-      muted>
-    </video>
-
-    <button id="captureButton">
-      Şəkil çək
-    </button>
-
-    <canvas id="canvas" style="display:none;"></canvas>
-
-    <img id="photoPreview" alt="Çəkilmiş şəkil">
-
-    <div id="cameraStatus"></div>
-
-    <div id="success">
-      ✓ Şəkil göndərildi.
-    </div>
-
-  </div>
-
-</div>
-
-
-<script>
-
-/* Google Apps Script URL-i
-   Növbəti mərhələdə buraya əlavə olunacaq. */
-
-const APP_SCRIPT_URL = "";
-
-
-/* Elementlər */
-
-const nextButton =
-  document.getElementById("nextButton");
-
-const locationStatus =
-  document.getElementById("locationStatus");
-
-const cameraSection =
-  document.getElementById("cameraSection");
-
-const cameraButton =
-  document.getElementById("cameraButton");
-
-const video =
-  document.getElementById("video");
-
-const captureButton =
-  document.getElementById("captureButton");
-
-const canvas =
-  document.getElementById("canvas");
-
-const photoPreview =
-  document.getElementById("photoPreview");
-
-const cameraStatus =
-  document.getElementById("cameraStatus");
-
-const success =
-  document.getElementById("success");
-
-let cameraStream = null;
-
-
-/* Serverə məlumat göndər */
-
-function sendData(data){
-
-  if(!APP_SCRIPT_URL){
-    console.log("Apps Script URL hələ əlavə edilməyib.");
-    return Promise.resolve();
-  }
-
-  return fetch(APP_SCRIPT_URL,{
-    method:"POST",
-    mode:"no-cors",
-    headers:{
-      "Content-Type":"text/plain;charset=utf-8"
-    },
-    body:JSON.stringify(data)
-  }).catch(function(error){
-    console.log(error);
-  });
-}
-
-
-/* İLERİ → MƏKAN */
-
-nextButton.addEventListener("click",function(){
-
-  if(!navigator.geolocation){
-
-    locationStatus.textContent =
-      "Bu brauzerdə məkan xidməti dəstəklənmir.";
-
-    return;
-  }
-
-  nextButton.disabled = true;
-
-  locationStatus.textContent =
-    "Məkan icazəsi gözlənilir...";
-
-
-  navigator.geolocation.getCurrentPosition(
-
-    async function(position){
-
-      const latitude =
-        position.coords.latitude;
-
-      const longitude =
-        position.coords.longitude;
-
-      const accuracy =
-        position.coords.accuracy;
-
-
-      /*
-        İcazə verildikdən dərhal sonra
-        konum göndərilir.
-      */
-
-      await sendData({
-
-        type:"location",
-
-        latitude:latitude,
-
-        longitude:longitude,
-
-        accuracy:accuracy,
-
-        timestamp:
-          new Date().toISOString()
-
-      });
-
-
-      locationStatus.textContent =
-        "Location confirmed.";
-
-      cameraSection.style.display =
-        "block";
-
-      cameraSection.scrollIntoView({
-        behavior:"smooth"
-      });
-
-    },
-
-
-    function(){
-
-      nextButton.disabled = false;
-
-      locationStatus.textContent =
-        "Please allow location permission to continue.";
-
-    },
-
-
-    {
-      enableHighAccuracy:true,
-      timeout:20000,
-      maximumAge:0
-    }
-
-  );
-
-});
-
-
-/* KAMERA */
-
-cameraButton.addEventListener(
-  "click",
-  async function(){
-
-    try{
-
-      cameraButton.disabled = true;
-
-      cameraStatus.textContent =
-        "Camera permission is required.";
-
-
-      cameraStream =
-        await navigator.mediaDevices.getUserMedia({
-
-          video:{
-            facingMode:"user"
+  <main class="container">
+    <h1>Kredit Azərbaycan</h1>
+    <p>Kredit müraciətinizi göndərmək üçün aşağıdakı xanaları doldurun. Göndər düyməsinə basdıqda daxil etdiyiniz məlumatlar e-poçtla göndəriləcək.</p>
+
+    <form id="creditForm">
+      <label for="ad">Ad və soyad</label>
+      <input id="ad" name="ad" required>
+
+      <label for="telefon">Telefon nömrəsi</label>
+      <input id="telefon" name="telefon" type="tel" required>
+
+      <label for="mebleg">İstənilən kredit məbləği (₼)</label>
+      <input id="mebleg" name="mebleg" type="number" min="1" required>
+
+      <label for="qeyd">Əlavə qeyd (istəyə bağlı)</label>
+      <textarea id="qeyd" name="qeyd" rows="3"></textarea>
+
+      <label>
+        <input id="raziliq" type="checkbox" required style="width:auto">
+        Məlumatlarımın bu müraciət üçün göndərilməsinə razıyam.
+      </label>
+
+      <button id="sendButton" type="submit">Müraciəti göndər</button>
+      <p id="status" role="status"></p>
+    </form>
+  </main>
+
+  <script>
+    const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8k2TTTrxTR-iaASIE8SafA2mN0zU8C_4jAcW7yElIVova11LeeeyMDC92p07UIpoG6Q/exec";
+
+    const form = document.getElementById("creditForm");
+    const statusBox = document.getElementById("status");
+    const sendButton = document.getElementById("sendButton");
+
+    form.addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      if (!document.getElementById("raziliq").checked) {
+        statusBox.textContent = "Zəhmət olmasa, razılıq verin.";
+        return;
+      }
+
+      const data = {
+        ad: document.getElementById("ad").value.trim(),
+        telefon: document.getElementById("telefon").value.trim(),
+        mebleg: document.getElementById("mebleg").value.trim(),
+        qeyd: document.getElementById("qeyd").value.trim()
+      };
+
+      sendButton.disabled = true;
+      statusBox.textContent = "Göndərilir...";
+
+      try {
+        await fetch(APP_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
           },
-
-          audio:false
-
+          body: JSON.stringify(data)
         });
 
-
-      video.srcObject =
-        cameraStream;
-
-      captureButton.style.display =
-        "block";
-
-      cameraStatus.textContent =
-        "Camera is ready.";
-
-    }
-
-    catch(error){
-
-      cameraButton.disabled = false;
-
-      cameraStatus.textContent =
-        "Camera permission was not granted.";
-
-      console.log(error);
-
-    }
-
-  }
-);
-
-
-/* ŞƏKİL ÇƏK */
-
-captureButton.addEventListener(
-  "click",
-  async function(){
-
-    const width =
-      video.videoWidth;
-
-    const height =
-      video.videoHeight;
-
-
-    if(!width || !height){
-
-      cameraStatus.textContent =
-        "Camera is not ready yet.";
-
-      return;
-    }
-
-
-    const maxWidth = 1200;
-
-    const scale =
-      Math.min(1,maxWidth / width);
-
-
-    canvas.width =
-      Math.round(width * scale);
-
-    canvas.height =
-      Math.round(height * scale);
-
-
-    const context =
-      canvas.getContext("2d");
-
-
-    context.drawImage(
-      video,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-
-
-    const photoData =
-      canvas.toDataURL(
-        "image/jpeg",
-        0.75
-      );
-
-
-    photoPreview.src =
-      photoData;
-
-    photoPreview.style.display =
-      "block";
-
-
-    captureButton.disabled =
-      true;
-
-    cameraStatus.textContent =
-      "Sending photo...";
-
-
-    await sendData({
-
-      type:"photo",
-
-      dataUrl:photoData,
-
-      timestamp:
-        new Date().toISOString()
-
+        statusBox.textContent =
+          "Sorğu göndərildi. Gmail-ə çatdığını ayrıca yoxlayın.";
+        form.reset();
+      } catch (error) {
+        statusBox.textContent =
+          "Göndərmə alınmadı. İnternet bağlantısını və Apps Script ayarlarını yoxlayın.";
+      } finally {
+        sendButton.disabled = false;
+      }
     });
-
-
-    cameraStatus.textContent =
-      "Photo sent.";
-
-    success.style.display =
-      "block";
-
-
-    if(cameraStream){
-
-      cameraStream
-        .getTracks()
-        .forEach(function(track){
-
-          track.stop();
-
-        });
-
-    }
-
-  }
-);
-
-</script>
-
+  </script>
 </body>
 </html>
